@@ -1,81 +1,132 @@
 import pygame
-import os
-import sys
+from pygame import *
+import os, sys
 
 
-def load_image(name, color_key=None):
+def load_image(name, colorkey=None):
     fullname = os.path.join('data', name)
-    try:
-        image = pygame.image.load(fullname)
-    except pygame.error as message:
-        print('Не удаётся загрузить:', name)
-        raise SystemExit(message)
-    image = image.convert_alpha()
-    if color_key is not None:
-        if color_key is -1:
-            color_key = image.get_at((0, 0))
-        image.set_colorkey(color_key)
+    # если файл не существует, то выходим
+    if not os.path.isfile(fullname):
+        print(f"Файл с изображением '{fullname}' не найден")
+        sys.exit()
+    image = pygame.image.load(fullname)
     return image
 
 
+# Объявляем переменные
+WIN_WIDTH = 800  # Ширина создаваемого окна
+WIN_HEIGHT = 640  # Высота
+DISPLAY = (WIN_WIDTH, WIN_HEIGHT)  # Группируем ширину и высоту в одну переменную
+BACKGROUND_COLOR = "#004400"
 
-pygame.init()
-size = width, height = 500, 500
-screen = pygame.display.set_mode(size)
-# основной персонаж
-player = None
+MOVE_SPEED = 7
+WIDTH = 22
+HEIGHT = 32
+COLOR = "#888888"
+JUMP_POWER = 10
+GRAVITY = 0.35  # Сила, которая будет тянуть нас вниз
+ICON_DIR = os.path.dirname(__file__)  # Полный путь к каталогу с файлами
 
-# группы спрайтов
-all_sprites = pygame.sprite.Group()
-tiles_group = pygame.sprite.Group()
-player_group = pygame.sprite.Group()
-
-tile_images = {
-    'wall': load_image('box.png'),
-    'empty': load_image('grass.png')
-}
-player_image = load_image('mar.png')
-
-tile_width = tile_height = 50
-
-
-class Tile(pygame.sprite.Sprite):
-    def __init__(self, tile_type, pos_x, pos_y):
-        super().__init__(tiles_group, all_sprites)
-        self.image = tile_images[tile_type]
-        self.rect = self.image.get_rect().move(
-            tile_width * pos_x, tile_height * pos_y)
+PLATFORM_WIDTH = 32
+PLATFORM_HEIGHT = 32
+PLATFORM_COLOR = "#FF6262"
+ICON_DIR = os.path.dirname(__file__)  # Полный путь к каталогу с файлами
 
 
-class Player(pygame.sprite.Sprite):
-    def __init__(self, pos_x, pos_y):
-        super().__init__(player_group, all_sprites)
-        self.image = player_image
-        self.rect = self.image.get_rect().move(
-            tile_width * pos_x + 15, tile_height * pos_y + 5)
-        self.pos = (pos_x, pos_y)
-
-    def move(self, x, y):
-        self.pos = (x, y)
-        self.rect = self.image.get_rect().move(tile_width * self.pos[0] + 15,
-                                               tile_height * self.pos[1] + 5)
+class Tile(sprite.Sprite):
+    def __init__(self, x, y):
+        sprite.Sprite.__init__(self)
+        self.image = Surface((PLATFORM_WIDTH, PLATFORM_HEIGHT))
+        self.image.fill(Color(PLATFORM_COLOR))
+        self.image = image.load("%s/blocks/platform.png" % ICON_DIR)
+        self.rect = Rect(x, y, PLATFORM_WIDTH, PLATFORM_HEIGHT)
 
 
-class Camera:
-    # зададим начальный сдвиг камеры
-    def __init__(self):
-        self.dx = 0
-        self.dy = 0
+class Player(sprite.Sprite):
+    def __init__(self, x, y):
+        sprite.Sprite.__init__(self)
+        self.xvel = 0  # скорость перемещения. 0 - стоять на месте
+        self.startX = x  # Начальная позиция Х, пригодится когда будем переигрывать уровень
+        self.startY = y
+        self.yvel = 0  # скорость вертикального перемещения
+        self.onGround = False  # На земле ли я?
+        self.image = Surface((WIDTH, HEIGHT))
+        self.image.fill(Color(COLOR))
+        self.rect = Rect(x, y, WIDTH, HEIGHT)  # прямоугольный объект
+        # self.image.set_colorkey(Color(COLOR)) # делаем фон прозрачным
 
-    # сдвинуть объект obj на смещение камеры
-    def apply(self, obj):
-        obj.rect.x += self.dx
-        obj.rect.y += self.dy
+    def update(self, left, right, up, platforms):
 
-    # позиционировать камеру на объекте target
+        if up:
+            if self.onGround:  # прыгаем, только когда можем оттолкнуться от земли
+                self.yvel = -JUMP_POWER
+            self.image.fill(Color(COLOR))
+
+        if left:
+            self.xvel = -MOVE_SPEED  # Лево = x- n
+            self.image.fill(Color(COLOR))
+
+        if right:
+            self.xvel = MOVE_SPEED  # Право = x + n
+            self.image.fill(Color(COLOR))
+
+        if not (left or right):  # стоим, когда нет указаний идти
+            self.xvel = 0
+            if not up:
+                self.image.fill(Color(COLOR))
+
+        if not self.onGround:
+            self.yvel += GRAVITY
+
+        self.onGround = False  # Мы не знаем, когда мы на земле((
+        self.rect.y += self.yvel
+        self.collide(0, self.yvel, platforms)
+
+        self.rect.x += self.xvel  # переносим свои положение на xvel
+        self.collide(self.xvel, 0, platforms)
+
+    def collide(self, xvel, yvel, platforms):
+        for p in platforms:
+            if sprite.collide_rect(self, p):  # если есть пересечение платформы с игроком
+                if xvel > 0:  # если движется вправо
+                    self.rect.right = p.rect.left  # то не движется вправо
+
+                if xvel < 0:  # если движется влево
+                    self.rect.left = p.rect.right  # то не движется влево
+
+                if yvel > 0:  # если падает вниз
+                    self.rect.bottom = p.rect.top  # то не падает вниз
+                    self.onGround = True  # и становится на что-то твердое
+                    self.yvel = 0  # и энергия падения пропадает
+
+                if yvel < 0:  # если движется вверх
+                    self.rect.top = p.rect.bottom  # то не движется вверх
+                    self.yvel = 0  # и энергия прыжка пропадает
+
+
+class Camera(object):
+    def __init__(self, camera_func, width, height):
+        self.camera_func = camera_func
+        self.state = Rect(0, 0, width, height)
+
+    def apply(self, target):
+        return target.rect.move(self.state.topleft)
+
     def update(self, target):
-        self.dx = -(target.rect.x + target.rect.w // 2 - width // 2)
-        self.dy = -(target.rect.y + target.rect.h // 2 - height // 2)
+        self.state = self.camera_func(self.state, target.rect)
+
+
+def camera_configure(camera, target_rect):
+    l, t, _, _ = target_rect
+    _, _, w, h = camera
+    l, t = -l + WIN_WIDTH / 2, -t + WIN_HEIGHT / 2
+
+    l = min(0, l)  # Не движемся дальше левой границы
+    l = max(-(camera.width - WIN_WIDTH), l)  # Не движемся дальше правой границы
+    t = max(-(camera.height - WIN_HEIGHT), t)  # Не движемся дальше нижней границы
+    t = min(0, t)  # Не движемся дальше верхней границы
+
+    return Rect(l, t, w, h)
 
 
 def terminate():
@@ -83,16 +134,18 @@ def terminate():
     sys.exit()
 
 
-def start_screen():
-    intro_text = ["Перемещение героя", '',
-                  "Герой двигается",
-                  "Карта на месте"]
-    fon = pygame.transform.scale(load_image('fon.jpg'), size)
-    screen.blit((fon), (0, 0))
+def start_screen(screen, clock, FPS):
+    intro_text = ["ЗАСТАВКА", "",
+                  "Правила игры",
+                  "Если в правилах несколько строк,",
+                  "приходится выводить их построчно"]
+
+    fon = pygame.transform.scale(load_image('fon.jpg'), (WIN_WIDTH, WIN_HEIGHT))
+    screen.blit(fon, (0, 0))
     font = pygame.font.Font(None, 30)
     text_coord = 50
     for line in intro_text:
-        string_rendered = font.render(line, 1, pygame.Color('black'))
+        string_rendered = font.render(line, 1, pygame.Color('white'))
         intro_rect = string_rendered.get_rect()
         text_coord += 10
         intro_rect.top = text_coord
@@ -104,83 +157,106 @@ def start_screen():
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 terminate()
-            elif event.type == pygame.KEYDOWN or event.type == pygame.MOUSEBUTTONDOWN:
-                return
+            elif event.type == pygame.KEYDOWN or \
+                    event.type == pygame.MOUSEBUTTONDOWN:
+                return  # начинаем игру
         pygame.display.flip()
+        clock.tick(FPS)
 
 
-def load_level(filename):
-    filename = "data/" + filename
-    # читаем уровень, убирая символы перевода строки
-    with open(filename, 'r') as mapFile:
-        level_map = [line.strip() for line in mapFile]
+def main():
+    pygame.init()  # Инициация PyGame, обязательная строчка
+    screen = pygame.display.set_mode(DISPLAY)  # Создаем окошко
+    pygame.display.set_caption("Super Mario Boy")  # Пишем в шапку
+    FPS = 60
+    clock = pygame.time.Clock()
+    bg = Surface((WIN_WIDTH, WIN_HEIGHT))  # Создание видимой поверхности
+    # будем использовать как фон
+    bg.fill(Color(BACKGROUND_COLOR))  # Заливаем поверхность сплошным цветом
 
-    # и подсчитываем максимальную длину
-    max_width = max(map(len, level_map))
+    start_screen(screen, clock, FPS)
 
-    # дополняем каждую строку пустыми клетками ('.')
-    return list(map(lambda x: x.ljust(max_width, '.'), level_map))
+    hero = Player(55, 55)  # создаем героя по (x,y) координатам
+    left = right = False  # по умолчанию - стоим
+    up = False
 
+    entities = pygame.sprite.Group()  # Все объекты
+    platforms = []  # то, во что мы будем врезаться или опираться
 
-def generate_level(level):
-    new_player, x, y = None, None, None
-    for y in range(len(level)):
-        for x in range(len(level[y])):
-            if level[y][x] == '.':
-                Tile('empty', x, y)
-            elif level[y][x] == '#':
-                Tile('wall', x, y)
-            elif level[y][x] == '@':
-                Tile('empty', x, y)
-                new_player = Player(x, y)
-    # вернем игрока, а также размер поля в клетках
-    return new_player, x, y
+    entities.add(hero)
 
+    level = [
+        "----------------------------------",
+        "-                                -",
+        "-                       --       -",
+        "-                                -",
+        "-            --                  -",
+        "-                                -",
+        "--                               -",
+        "-                                -",
+        "-                   ----     --- -",
+        "-                                -",
+        "--                               -",
+        "-                                -",
+        "-                            --- -",
+        "-                                -",
+        "-                                -",
+        "-      ---                       -",
+        "-                                -",
+        "-   -------         ----         -",
+        "-                                -",
+        "-                         -      -",
+        "-                            --  -",
+        "-                                -",
+        "-                                -",
+        "----------------------------------"]
 
-def move(player, movement):
-    x, y = player.pos
-    if movement == 'up':
-        if y > 0 and level_map[y - 1][x] == '.':
-            player.move(x, y - 1)
-    elif movement == 'down':
-        if y < level_y - 1 and level_map[y + 1][x] == '.':
-            player.move(x, y + 1)
-    elif movement == 'left':
-        if x > 0 and level_map[y][x - 1] == '.':
-            player.move(x - 1, y)
-    elif movement == 'right':
-        if x < level_x - 1 and level_map[y][x + 1] == '.':
-            player.move(x + 1, y)
+    clock = pygame.time.Clock()
+    x = y = 0  # координаты
+    for row in level:  # вся строка
+        for col in row:  # каждый символ
+            if col == "-":
+                pf = Tile(x, y)
+                entities.add(pf)
+                platforms.append(pf)
 
+            x += PLATFORM_WIDTH  # блоки платформы ставятся на ширине блоков
+        y += PLATFORM_HEIGHT  # то же самое и с высотой
+        x = 0  # на каждой новой строчке начинаем с нуля
 
+    total_level_width = len(level[0]) * PLATFORM_WIDTH  # Высчитываем фактическую ширину уровня
+    total_level_height = len(level) * PLATFORM_HEIGHT  # высоту
 
-if __name__ == '__main__':
-    pygame.display.set_caption('Марио')
-    ranning = True
-    start_screen()
-    level_map = load_level('map.txt')
-    player, level_x, level_y = generate_level(level_map)
-    camera = Camera()
-    while ranning:
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
+    camera = Camera(camera_configure, total_level_width, total_level_height)
+
+    while 1:  # Основной цикл программы
+        clock.tick(FPS)
+        for e in pygame.event.get():  # Обрабатываем события
+            if e.type == QUIT:
                 terminate()
-            elif event.type == pygame.KEYDOWN:
-                # изменяем ракурс камеры
-                camera.update(player)
-                # обновляем положение всех спрайтов
-                for sprite in all_sprites:
-                    camera.apply(sprite)
-                if event.key == pygame.K_UP:
-                    move(player, 'up')
-                if event.key == pygame.K_DOWN:
-                    move(player, 'down')
-                if event.key == pygame.K_RIGHT:
-                    move(player, 'right')
-                if event.key == pygame.K_LEFT:
-                    move(player, 'left')
-        screen.fill(pygame.Color('black'))
-        tiles_group.draw(screen)
-        player_group.draw(screen)
-        pygame.display.flip()
-    pygame.quit()
+            if e.type == KEYDOWN and e.key == K_UP:
+                up = True
+            if e.type == KEYDOWN and e.key == K_LEFT:
+                left = True
+            if e.type == KEYDOWN and e.key == K_RIGHT:
+                right = True
+
+            if e.type == KEYUP and e.key == K_UP:
+                up = False
+            if e.type == KEYUP and e.key == K_RIGHT:
+                right = False
+            if e.type == KEYUP and e.key == K_LEFT:
+                left = False
+
+        screen.blit(bg, (0, 0))  # Каждую итерацию необходимо всё перерисовывать
+
+        camera.update(hero)  # центризируем камеру относительно персонажа
+        hero.update(left, right, up, platforms)  # передвижение
+        for e in entities:
+            screen.blit(e.image, camera.apply(e))
+
+        pygame.display.update()  # обновление и вывод всех изменений на экран
+
+
+if __name__ == "__main__":
+    main()
