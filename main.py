@@ -1,6 +1,9 @@
 import pygame
 from pygame import *
 import os, sys
+from pytmx import load_pygame, TiledTileLayer
+
+
 
 
 def load_image(name, colorkey=None):
@@ -18,6 +21,11 @@ WIN_WIDTH = 800  # Ширина создаваемого окна
 WIN_HEIGHT = 640  # Высота
 DISPLAY = (WIN_WIDTH, WIN_HEIGHT)  # Группируем ширину и высоту в одну переменную
 BACKGROUND_COLOR = "#004400"
+
+MONSTER_WIDTH = 32
+MONSTER_HEIGHT = 32
+MONSTER_COLOR = "#2110FF"
+ICON_DIR = os.path.dirname(__file__) #  Полный путь к каталогу с файлами
 
 MOVE_SPEED = 7
 WIDTH = 22
@@ -42,6 +50,43 @@ class Tile(sprite.Sprite):
         self.rect = Rect(x, y, PLATFORM_WIDTH, PLATFORM_HEIGHT)
 
 
+class Monster(sprite.Sprite):
+    def __init__(self, x, y, left, up, maxLengthLeft, maxLengthUp):
+        sprite.Sprite.__init__(self)
+        self.image = Surface((MONSTER_WIDTH, MONSTER_HEIGHT))
+        self.image.fill(Color(MONSTER_COLOR))
+        self.rect = Rect(x, y, MONSTER_WIDTH, MONSTER_HEIGHT)
+        self.image.set_colorkey(Color(MONSTER_COLOR))
+        self.image = image.load("%s/blocks/platform.png" % ICON_DIR)
+        self.startX = x  # начальные координаты
+        self.startY = y
+        self.maxLengthLeft = maxLengthLeft  # максимальное расстояние, которое может пройти в одну сторону
+        self.maxLengthUp = maxLengthUp  # максимальное расстояние, которое может пройти в одну сторону, вертикаль
+        self.xvel = left  # cкорость передвижения по горизонтали, 0 - стоит на месте
+        self.yvel = up  # скорость движения по вертикали, 0 - не двигается
+
+
+    def update(self, platforms):  # по принципу героя
+
+        self.image.fill(Color(MONSTER_COLOR))
+
+        self.rect.y += self.yvel
+        self.rect.x += self.xvel
+
+        self.collide(platforms)
+
+        if (abs(self.startX - self.rect.x) > self.maxLengthLeft):
+            self.xvel = -self.xvel  # если прошли максимальное растояние, то идеи в обратную сторону
+        if (abs(self.startY - self.rect.y) > self.maxLengthUp):
+            self.yvel = -self.yvel  # если прошли максимальное растояние, то идеи в обратную сторону, вертикаль
+    def collide(self, platforms):
+        for p in platforms:
+            if sprite.collide_rect(self, p) and self != p:  # если с чем-то или кем-то столкнулись
+                self.xvel = - self.xvel  # то поворачиваем в обратную сторону
+                self.yvel = - self.yvel
+
+
+
 class Player(sprite.Sprite):
     def __init__(self, x, y):
         sprite.Sprite.__init__(self)
@@ -54,6 +99,14 @@ class Player(sprite.Sprite):
         self.image.fill(Color(COLOR))
         self.rect = Rect(x, y, WIDTH, HEIGHT)  # прямоугольный объект
         # self.image.set_colorkey(Color(COLOR)) # делаем фон прозрачным
+
+    def die(self):
+        time.wait(500)
+        self.teleporting(self.startX, self.startY)
+
+    def teleporting(self, goX, goY):
+        self.rect.x = goX
+        self.rect.y = goY
 
     def update(self, left, right, up, platforms):
 
@@ -88,6 +141,9 @@ class Player(sprite.Sprite):
     def collide(self, xvel, yvel, platforms):
         for p in platforms:
             if sprite.collide_rect(self, p):  # если есть пересечение платформы с игроком
+                if isinstance(p, Monster):  # если пересакаемый блок- blocks.BlockDie или Monster
+                    self.die()  # умираем
+
                 if xvel > 0:  # если движется вправо
                     self.rect.right = p.rect.left  # то не движется вправо
 
@@ -173,8 +229,13 @@ def main():
     bg = Surface((WIN_WIDTH, WIN_HEIGHT))  # Создание видимой поверхности
     # будем использовать как фон
     bg.fill(Color(BACKGROUND_COLOR))  # Заливаем поверхность сплошным цветом
+    monsters = pygame.sprite.Group()  # Все передвигающиеся объекты
+
+    mn = Monster(190, 200, 2, 3, 150, 15)
+
 
     start_screen(screen, clock, FPS)
+
 
     hero = Player(55, 55)  # создаем героя по (x,y) координатам
     left = right = False  # по умолчанию - стоим
@@ -184,6 +245,9 @@ def main():
     platforms = []  # то, во что мы будем врезаться или опираться
 
     entities.add(hero)
+    entities.add(mn)
+    platforms.append(mn)
+    monsters.add(mn)
 
     level = [
         "----------------------------------",
@@ -252,6 +316,7 @@ def main():
 
         camera.update(hero)  # центризируем камеру относительно персонажа
         hero.update(left, right, up, platforms)  # передвижение
+        monsters.update(platforms)  # передвигаем всех монстров
         for e in entities:
             screen.blit(e.image, camera.apply(e))
 
