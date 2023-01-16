@@ -1,7 +1,8 @@
 import pygame
 from pygame import *
 import os, sys
-from pytmx import load_pygame, TiledTileLayer
+import tiledtmxloader # Может загружать tmx файлы
+#import helperspygame # Преобразует tmx карты в формат  спрайтов pygame
 
 
 
@@ -55,9 +56,9 @@ class Monster(sprite.Sprite):
         sprite.Sprite.__init__(self)
         self.image = Surface((MONSTER_WIDTH, MONSTER_HEIGHT))
         self.image.fill(Color(MONSTER_COLOR))
-        self.rect = Rect(x, y, MONSTER_WIDTH, MONSTER_HEIGHT)
-        self.image.set_colorkey(Color(MONSTER_COLOR))
+        #self.image.set_colorkey(Color(MONSTER_COLOR))
         self.image = image.load("%s/blocks/platform.png" % ICON_DIR)
+        self.rect = Rect(x, y, MONSTER_WIDTH, MONSTER_HEIGHT)
         self.startX = x  # начальные координаты
         self.startY = y
         self.maxLengthLeft = maxLengthLeft  # максимальное расстояние, которое может пройти в одну сторону
@@ -68,7 +69,10 @@ class Monster(sprite.Sprite):
 
     def update(self, platforms):  # по принципу героя
 
+        self.image = Surface((MONSTER_WIDTH, MONSTER_HEIGHT))
         self.image.fill(Color(MONSTER_COLOR))
+        # self.image.set_colorkey(Color(MONSTER_COLOR))
+        self.image = image.load("%s/blocks/platform.png" % ICON_DIR)
 
         self.rect.y += self.yvel
         self.rect.x += self.xvel
@@ -79,6 +83,7 @@ class Monster(sprite.Sprite):
             self.xvel = -self.xvel  # если прошли максимальное растояние, то идеи в обратную сторону
         if (abs(self.startY - self.rect.y) > self.maxLengthUp):
             self.yvel = -self.yvel  # если прошли максимальное растояние, то идеи в обратную сторону, вертикаль
+
     def collide(self, platforms):
         for p in platforms:
             if sprite.collide_rect(self, p) and self != p:  # если с чем-то или кем-то столкнулись
@@ -88,8 +93,11 @@ class Monster(sprite.Sprite):
 
 
 class Player(sprite.Sprite):
-    def __init__(self, x, y):
+    def __init__(self, x, y, screen, clock, FPS):
         sprite.Sprite.__init__(self)
+        self.screen = screen
+        self.clock = clock
+        self.FPS = FPS
         self.xvel = 0  # скорость перемещения. 0 - стоять на месте
         self.startX = x  # Начальная позиция Х, пригодится когда будем переигрывать уровень
         self.startY = y
@@ -101,7 +109,8 @@ class Player(sprite.Sprite):
         # self.image.set_colorkey(Color(COLOR)) # делаем фон прозрачным
 
     def die(self):
-        time.wait(500)
+        die_screen(self.screen, self.clock, self.FPS)
+        time.wait(1000)
         self.teleporting(self.startX, self.startY)
 
     def teleporting(self, goX, goY):
@@ -189,6 +198,37 @@ def terminate():
     pygame.quit()
     sys.exit()
 
+def die_screen(screen, clock, FPS):
+    intro_text = ["СДОХ", "",
+                  "Правила игры",
+                  "Если в правилах несколько строк,",
+                  "приходится выводить их построчно"]
+    fon = pygame.transform.scale(load_image('fon.jpg'), (WIN_WIDTH, WIN_HEIGHT))
+    screen.blit(fon, (0, 0))
+    font = pygame.font.Font(None, 30)
+    text_coord = 50
+    for line in intro_text:
+        string_rendered = font.render(line, 1, pygame.Color('white'))
+        intro_rect = string_rendered.get_rect()
+        text_coord += 10
+        intro_rect.top = text_coord
+        intro_rect.x = 10
+        text_coord += intro_rect.height
+        screen.blit(string_rendered, intro_rect)
+
+    while True:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                terminate()
+            elif event.type == pygame.KEYDOWN or \
+                    event.type == pygame.MOUSEBUTTONDOWN:
+                right = False
+                left = False
+                up = False
+                return   right, left, up # начинаем игру
+        pygame.display.flip()
+        clock.tick(FPS)
+
 
 def start_screen(screen, clock, FPS):
     intro_text = ["ЗАСТАВКА", "",
@@ -237,7 +277,7 @@ def main():
     start_screen(screen, clock, FPS)
 
 
-    hero = Player(55, 55)  # создаем героя по (x,y) координатам
+    hero = Player(55, 55, screen, clock, FPS)  # создаем героя по (x,y) координатам
     left = right = False  # по умолчанию - стоим
     up = False
 

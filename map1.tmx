@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.9" tiledversion="1.9.2" orientation="orthogonal" renderorder="right-down" width="32" height="20" tilewidth="32" tileheight="32" infinite="0" nextlayerid="4" nextobjectid="1">
+<map version="1.9" tiledversion="1.9.2" orientation="orthogonal" renderorder="right-down" width="32" height="20" tilewidth="32" tileheight="32" infinite="0" nextlayerid="5" nextobjectid="9">
  <tileset firstgid="1" source="data/tile_place.tsx"/>
  <tileset firstgid="226" source="data/[32x32] Decoraciones V1.tsx"/>
  <tileset firstgid="235" source="data/background1.tsx"/>
@@ -14,9 +14,7 @@
    eJwTZ2BgUBsgLA7EEgwDB8RG7YfbzwrFA2U/MuDAIcaBQ47a9uNzBzb3kOsmYuOfmn4mx35iAalhQo/0j889gyn/0QuwMyDCg9blL7JdyHYiY1Ltx2YmCHNikUe3CxvGZT8uewiZI0akvciYFHtoYT818Ei3HxaPA2U3uRgA7XIY1Q==
   </data>
  </layer>
- <layer id="3" name="Character" width="32" height="20">
-  <data encoding="base64" compression="zlib">
-   eJxjYBgFo2AUjIJRMApGMGAcaAeMglFAfwAADPcAAg==
-  </data>
- </layer>
+ <objectgroup id="4" name="Character">
+  <object id="6" name="Player" x="82" y="441" height="3"/>
+ </objectgroup>
 </map>
