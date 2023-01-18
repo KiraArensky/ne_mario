@@ -108,10 +108,11 @@ class Player(sprite.Sprite):
         self.rect = Rect(x, y, WIDTH, HEIGHT)  # прямоугольный объект
         # self.image.set_colorkey(Color(COLOR)) # делаем фон прозрачным
 
-    def die(self):
-        die_screen(self.screen, self.clock, self.FPS)
-        time.wait(1000)
+    def die(self, platforms):
         self.teleporting(self.startX, self.startY)
+        die_screen(self.screen, self.clock, self.FPS)
+        #time.wait(500)
+
 
     def teleporting(self, goX, goY):
         self.rect.x = goX
@@ -151,7 +152,7 @@ class Player(sprite.Sprite):
         for p in platforms:
             if sprite.collide_rect(self, p):  # если есть пересечение платформы с игроком
                 if isinstance(p, Monster):  # если пересакаемый блок- blocks.BlockDie или Monster
-                    self.die()  # умираем
+                    self.die(platforms)  # умираем
 
                 if xvel > 0:  # если движется вправо
                     self.rect.right = p.rect.left  # то не движется вправо
@@ -199,11 +200,8 @@ def terminate():
     sys.exit()
 
 def die_screen(screen, clock, FPS):
-    intro_text = ["СДОХ", "",
-                  "Правила игры",
-                  "Если в правилах несколько строк,",
-                  "приходится выводить их построчно"]
-    fon = pygame.transform.scale(load_image('fon.jpg'), (WIN_WIDTH, WIN_HEIGHT))
+    intro_text = ["СДОХ"]
+    fon = pygame.transform.scale(load_image('die.jpg'), (WIN_WIDTH, WIN_HEIGHT))
     screen.blit(fon, (0, 0))
     font = pygame.font.Font(None, 30)
     text_coord = 50
@@ -222,10 +220,7 @@ def die_screen(screen, clock, FPS):
                 terminate()
             elif event.type == pygame.KEYDOWN or \
                     event.type == pygame.MOUSEBUTTONDOWN:
-                right = False
-                left = False
-                up = False
-                return   right, left, up # начинаем игру
+                return
         pygame.display.flip()
         clock.tick(FPS)
 
@@ -290,30 +285,26 @@ def main():
     monsters.add(mn)
 
     level = [
-        "----------------------------------",
-        "-                                -",
-        "-                       --       -",
-        "-                                -",
-        "-            --                  -",
-        "-                                -",
-        "--                               -",
-        "-                                -",
-        "-                   ----     --- -",
-        "-                                -",
-        "--                               -",
-        "-                                -",
-        "-                            --- -",
-        "-                                -",
-        "-                                -",
-        "-      ---                       -",
-        "-                                -",
-        "-   -------         ----         -",
-        "-                                -",
-        "-                         -      -",
-        "-                            --  -",
-        "-                                -",
-        "-                                -",
-        "----------------------------------"]
+        "------------------------------------------",
+        "-                                        -",
+        "-                               --       -",
+        "-                                        -",
+        "-            --                          -",
+        "-                                        -",
+        "--                                       -",
+        "-                                        -",
+        "--                          ----     --- -",
+        "-                                        -",
+        "-                                        -",
+        "-      ---                               -",
+        "-                                        -",
+        "-   -------         ----                 -",
+        "-                                        -",
+        "-        ------                   -      -",
+        "-                                    --  -",
+        "-                                        -",
+        "-                                        -",
+        "------------------------------------------"]
 
     clock = pygame.time.Clock()
     x = y = 0  # координаты
