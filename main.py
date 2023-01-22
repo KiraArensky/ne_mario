@@ -1,10 +1,10 @@
 import pygame
 from pygame import *
 import os, sys
-import tiledtmxloader # Может загружать tmx файлы
-#import helperspygame # Преобразует tmx карты в формат  спрайтов pygame
+import tiledtmxloader  # Может загружать tmx файлы
 
 
+# import helperspygame # Преобразует tmx карты в формат  спрайтов pygame
 
 
 def load_image(name, colorkey=None):
@@ -26,7 +26,7 @@ BACKGROUND_COLOR = "#004400"
 MONSTER_WIDTH = 32
 MONSTER_HEIGHT = 32
 MONSTER_COLOR = "#2110FF"
-ICON_DIR = os.path.dirname(__file__) #  Полный путь к каталогу с файлами
+ICON_DIR = os.path.dirname(__file__)  # Полный путь к каталогу с файлами
 
 MOVE_SPEED = 7
 WIDTH = 22
@@ -56,7 +56,7 @@ class Monster(sprite.Sprite):
         sprite.Sprite.__init__(self)
         self.image = Surface((MONSTER_WIDTH, MONSTER_HEIGHT))
         self.image.fill(Color(MONSTER_COLOR))
-        #self.image.set_colorkey(Color(MONSTER_COLOR))
+        # self.image.set_colorkey(Color(MONSTER_COLOR))
         self.image = image.load("%s/blocks/platform.png" % ICON_DIR)
         self.rect = Rect(x, y, MONSTER_WIDTH, MONSTER_HEIGHT)
         self.startX = x  # начальные координаты
@@ -65,7 +65,6 @@ class Monster(sprite.Sprite):
         self.maxLengthUp = maxLengthUp  # максимальное расстояние, которое может пройти в одну сторону, вертикаль
         self.xvel = left  # cкорость передвижения по горизонтали, 0 - стоит на месте
         self.yvel = up  # скорость движения по вертикали, 0 - не двигается
-
 
     def update(self, platforms):  # по принципу героя
 
@@ -90,6 +89,20 @@ class Monster(sprite.Sprite):
                 self.xvel = - self.xvel  # то поворачиваем в обратную сторону
                 self.yvel = - self.yvel
 
+class Weapon(sprite.Sprite):
+    def __init__(self, x, y, screen, clock, FPS):
+        sprite.Sprite.__init__(self)
+        self.screen = screen
+        self.clock = clock
+        self.FPS = FPS
+        self.xvel = 0  # скорость перемещения. 0 - стоять на месте
+        self.startX = x  # Начальная позиция Х, пригодится когда будем переигрывать уровень
+        self.startY = y
+        self.image = Surface((WIDTH, HEIGHT))
+        self.image.fill(Color(COLOR))
+        self.rect = Rect(x, y, WIDTH, HEIGHT)  # прямоугольный объект
+
+class Bullet(sprite.Sprite):
 
 
 class Player(sprite.Sprite):
@@ -108,11 +121,10 @@ class Player(sprite.Sprite):
         self.rect = Rect(x, y, WIDTH, HEIGHT)  # прямоугольный объект
         # self.image.set_colorkey(Color(COLOR)) # делаем фон прозрачным
 
-    def die(self, platforms):
-        self.teleporting(self.startX, self.startY)
+    def die(self):
+        time.wait(500)
         die_screen(self.screen, self.clock, self.FPS)
-        #time.wait(500)
-
+        main(screen_flag=False)
 
     def teleporting(self, goX, goY):
         self.rect.x = goX
@@ -152,7 +164,7 @@ class Player(sprite.Sprite):
         for p in platforms:
             if sprite.collide_rect(self, p):  # если есть пересечение платформы с игроком
                 if isinstance(p, Monster):  # если пересакаемый блок- blocks.BlockDie или Monster
-                    self.die(platforms)  # умираем
+                    self.die()  # умираем
 
                 if xvel > 0:  # если движется вправо
                     self.rect.right = p.rect.left  # то не движется вправо
@@ -198,6 +210,7 @@ def camera_configure(camera, target_rect):
 def terminate():
     pygame.quit()
     sys.exit()
+
 
 def die_screen(screen, clock, FPS):
     intro_text = ["СДОХ"]
@@ -255,7 +268,7 @@ def start_screen(screen, clock, FPS):
         clock.tick(FPS)
 
 
-def main():
+def main(screen_flag=True):
     pygame.init()  # Инициация PyGame, обязательная строчка
     screen = pygame.display.set_mode(DISPLAY)  # Создаем окошко
     pygame.display.set_caption("Super Mario Boy")  # Пишем в шапку
@@ -267,10 +280,8 @@ def main():
     monsters = pygame.sprite.Group()  # Все передвигающиеся объекты
 
     mn = Monster(190, 200, 2, 3, 150, 15)
-
-
-    start_screen(screen, clock, FPS)
-
+    if screen_flag:
+        start_screen(screen, clock, FPS)
 
     hero = Player(55, 55, screen, clock, FPS)  # создаем героя по (x,y) координатам
     left = right = False  # по умолчанию - стоим
