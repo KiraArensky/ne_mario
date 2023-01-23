@@ -17,6 +17,7 @@ def load_image(name, colorkey=None):
     return image
 
 
+weapon_on = []
 # Объявляем переменные
 WIN_WIDTH = 800  # Ширина создаваемого окна
 WIN_HEIGHT = 640  # Высота
@@ -89,20 +90,62 @@ class Monster(sprite.Sprite):
                 self.xvel = - self.xvel  # то поворачиваем в обратную сторону
                 self.yvel = - self.yvel
 
+
 class Weapon(sprite.Sprite):
     def __init__(self, x, y, screen, clock, FPS):
         sprite.Sprite.__init__(self)
         self.screen = screen
         self.clock = clock
         self.FPS = FPS
-        self.xvel = 0  # скорость перемещения. 0 - стоять на месте
-        self.startX = x  # Начальная позиция Х, пригодится когда будем переигрывать уровень
-        self.startY = y
-        self.image = Surface((WIDTH, HEIGHT))
-        self.image.fill(Color(COLOR))
-        self.rect = Rect(x, y, WIDTH, HEIGHT)  # прямоугольный объект
+        self.fast = 150  # скорость перемещения. 0 - стоять на месте
+        self.image = Surface((10, 10))
+        self.image.fill(Color("black"))
+        self.rect = Rect(x, y, 10, 10)  # прямоугольный объект
+
+    def update(self, hero):
+        global weapon_on
+        if 11 in weapon_on:
+            self.rect.x = hero.rect.x - 10
+            self.rect.y = hero.rect.y - 10
+
 
 class Bullet(sprite.Sprite):
+    def __init__(self, x, y, screen, clock, FPS):
+        sprite.Sprite.__init__(self)
+        self.screen = screen
+        self.clock = clock
+        self.FPS = FPS
+        self.fast = 1  # скорость перемещения. 0 - стоять на месте
+        self.image = Surface((10, 10))
+        self.image.fill(Color("white"))
+        self.rect = Rect(x, y, 10, 10)  # прямоугольный объект
+
+    def update(self, hero):
+        global weapon_on
+        if 11 in weapon_on:
+            self.rect.x = hero.rect.x - 10
+            self.rect.y = hero.rect.y - 10
+            self.fire()
+
+    def fire(self, x, y, x1, y1):
+        global weapon_on
+        if 22 in weapon_on:
+            run = int(x1) - int(x)
+            rise = int(y1) - int(y)
+            length = ((rise * rise) + (run * run)) ** 0.5
+            unitX = run / length
+            unitY = rise / length
+            self.rect.x += unitX * self.fast
+            self.rect.y += unitY * self.fast
+
+    def collide(self, platforms):
+        global weapon_on
+        hero = Player
+        for p in platforms:
+            if sprite.collide_rect(self, p) and self != p:  # если с чем-то или кем-то столкнулись
+                self.rect.x = hero.rect.x - 10
+                self.rect.y = hero.rect.y - 10
+                weapon_on.remove(22)
 
 
 class Player(sprite.Sprite):
@@ -112,8 +155,6 @@ class Player(sprite.Sprite):
         self.clock = clock
         self.FPS = FPS
         self.xvel = 0  # скорость перемещения. 0 - стоять на месте
-        self.startX = x  # Начальная позиция Х, пригодится когда будем переигрывать уровень
-        self.startY = y
         self.yvel = 0  # скорость вертикального перемещения
         self.onGround = False  # На земле ли я?
         self.image = Surface((WIDTH, HEIGHT))
@@ -161,10 +202,13 @@ class Player(sprite.Sprite):
         self.collide(self.xvel, 0, platforms)
 
     def collide(self, xvel, yvel, platforms):
+        global weapon_on
         for p in platforms:
             if sprite.collide_rect(self, p):  # если есть пересечение платформы с игроком
                 if isinstance(p, Monster):  # если пересакаемый блок- blocks.BlockDie или Monster
                     self.die()  # умираем
+                if isinstance(p, Weapon):
+                    weapon_on.append(11)
 
                 if xvel > 0:  # если движется вправо
                     self.rect.right = p.rect.left  # то не движется вправо
@@ -283,7 +327,10 @@ def main(screen_flag=True):
     if screen_flag:
         start_screen(screen, clock, FPS)
 
-    hero = Player(55, 55, screen, clock, FPS)  # создаем героя по (x,y) координатам
+    hero = Player(105, 55, screen, clock, FPS)  # создаем героя по (x,y) координатам
+    weapon = Weapon(55, 155, screen, clock, FPS)
+    bullet = Bullet(55, 155, screen, clock, FPS)
+
     left = right = False  # по умолчанию - стоим
     up = False
 
@@ -291,8 +338,12 @@ def main(screen_flag=True):
     platforms = []  # то, во что мы будем врезаться или опираться
 
     entities.add(hero)
+    entities.add(weapon)
+    entities.add(bullet)
     entities.add(mn)
     platforms.append(mn)
+    platforms.append(weapon)
+    platforms.append(bullet)
     monsters.add(mn)
 
     level = [
@@ -347,6 +398,12 @@ def main(screen_flag=True):
             if e.type == KEYDOWN and e.key == K_RIGHT:
                 right = True
 
+            if e.type == pygame.MOUSEBUTTONDOWN:
+                pos_mouse = pygame.mouse.get_pos()
+                print(pos_mouse[0], pos_mouse[1])
+                weapon_on.append(22)
+                bullet.fire(hero.rect.x, hero.rect.y, pos_mouse[0], pos_mouse[1])
+
             if e.type == KEYUP and e.key == K_UP:
                 up = False
             if e.type == KEYUP and e.key == K_RIGHT:
@@ -358,6 +415,8 @@ def main(screen_flag=True):
 
         camera.update(hero)  # центризируем камеру относительно персонажа
         hero.update(left, right, up, platforms)  # передвижение
+        bullet.update(hero)
+        weapon.update(hero)
         monsters.update(platforms)  # передвигаем всех монстров
         for e in entities:
             screen.blit(e.image, camera.apply(e))
