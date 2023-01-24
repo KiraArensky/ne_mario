@@ -1,10 +1,6 @@
 import pygame
 from pygame import *
 import os, sys
-import tiledtmxloader  # Может загружать tmx файлы
-
-
-# import helperspygame # Преобразует tmx карты в формат  спрайтов pygame
 
 
 def load_image(name, colorkey=None):
@@ -17,30 +13,22 @@ def load_image(name, colorkey=None):
     return image
 
 
-weapon_on = []
+meow_on = []
 # Объявляем переменные
 WIN_WIDTH = 800  # Ширина создаваемого окна
 WIN_HEIGHT = 640  # Высота
 DISPLAY = (WIN_WIDTH, WIN_HEIGHT)  # Группируем ширину и высоту в одну переменную
 BACKGROUND_COLOR = "#004400"
 
-MONSTER_WIDTH = 32
-MONSTER_HEIGHT = 32
-MONSTER_COLOR = "#2110FF"
 ICON_DIR = os.path.dirname(__file__)  # Полный путь к каталогу с файлами
 
 MOVE_SPEED = 7
-WIDTH = 22
-HEIGHT = 32
-COLOR = "#888888"
 JUMP_POWER = 10
 GRAVITY = 0.35  # Сила, которая будет тянуть нас вниз
-ICON_DIR = os.path.dirname(__file__)  # Полный путь к каталогу с файлами
 
 PLATFORM_WIDTH = 32
 PLATFORM_HEIGHT = 32
 PLATFORM_COLOR = "#FF6262"
-ICON_DIR = os.path.dirname(__file__)  # Полный путь к каталогу с файлами
 
 
 class Tile(sprite.Sprite):
@@ -48,18 +36,30 @@ class Tile(sprite.Sprite):
         sprite.Sprite.__init__(self)
         self.image = Surface((PLATFORM_WIDTH, PLATFORM_HEIGHT))
         self.image.fill(Color(PLATFORM_COLOR))
-        self.image = image.load("%s/blocks/platform.png" % ICON_DIR)
+        self.image = image.load("%s/data/blocks/platform.png" % ICON_DIR)
+        self.rect = Rect(x, y, PLATFORM_WIDTH, PLATFORM_HEIGHT)
+
+
+class Tile_win(sprite.Sprite):
+    def __init__(self, x, y):
+        sprite.Sprite.__init__(self)
+        self.image = Surface((PLATFORM_WIDTH, PLATFORM_HEIGHT))
+        self.image.fill(Color(PLATFORM_COLOR))
+        self.image = image.load("%s/data/blocks/win.png" % ICON_DIR)
         self.rect = Rect(x, y, PLATFORM_WIDTH, PLATFORM_HEIGHT)
 
 
 class Monster(sprite.Sprite):
     def __init__(self, x, y, left, up, maxLengthLeft, maxLengthUp):
         sprite.Sprite.__init__(self)
-        self.image = Surface((MONSTER_WIDTH, MONSTER_HEIGHT))
-        self.image.fill(Color(MONSTER_COLOR))
-        # self.image.set_colorkey(Color(MONSTER_COLOR))
-        self.image = image.load("%s/blocks/platform.png" % ICON_DIR)
-        self.rect = Rect(x, y, MONSTER_WIDTH, MONSTER_HEIGHT)
+        self.frames = []
+        self.sheet = image.load("%s/data/Wraith.png" % ICON_DIR)
+        self.columns = 4
+        self.rows = 5
+        self.cut_sheet(self.sheet, self.columns, self.rows)
+        self.cur_frame = 0
+        self.image = self.frames[self.cur_frame]
+        self.rect = self.rect.move(x, y)
         self.startX = x  # начальные координаты
         self.startY = y
         self.maxLengthLeft = maxLengthLeft  # максимальное расстояние, которое может пройти в одну сторону
@@ -67,12 +67,18 @@ class Monster(sprite.Sprite):
         self.xvel = left  # cкорость передвижения по горизонтали, 0 - стоит на месте
         self.yvel = up  # скорость движения по вертикали, 0 - не двигается
 
+    def cut_sheet(self, sheet, columns, rows):
+        self.rect = Rect(0, 0, sheet.get_width() // columns, sheet.get_height() // rows)
+        for j in range(rows):
+            for i in range(columns):
+                frame_location = (self.rect.w * i, self.rect.h * j)
+                self.frames.append(sheet.subsurface(pygame.Rect(
+                    frame_location, self.rect.size)))
+
     def update(self, platforms):  # по принципу героя
 
-        self.image = Surface((MONSTER_WIDTH, MONSTER_HEIGHT))
-        self.image.fill(Color(MONSTER_COLOR))
-        # self.image.set_colorkey(Color(MONSTER_COLOR))
-        self.image = image.load("%s/blocks/platform.png" % ICON_DIR)
+        self.cur_frame = (self.cur_frame + 1) % len(self.frames)
+        self.image = self.frames[self.cur_frame]
 
         self.rect.y += self.yvel
         self.rect.x += self.xvel
@@ -91,7 +97,7 @@ class Monster(sprite.Sprite):
                 self.yvel = - self.yvel
 
 
-class Weapon(sprite.Sprite):
+class Meow(sprite.Sprite):
     def __init__(self, x, y, screen, clock, FPS):
         sprite.Sprite.__init__(self)
         self.screen = screen
@@ -103,49 +109,10 @@ class Weapon(sprite.Sprite):
         self.rect = Rect(x, y, 10, 10)  # прямоугольный объект
 
     def update(self, hero):
-        global weapon_on
-        if 11 in weapon_on:
+        global meow_on
+        if 11 in meow_on:
             self.rect.x = hero.rect.x - 10
             self.rect.y = hero.rect.y - 10
-
-
-class Bullet(sprite.Sprite):
-    def __init__(self, x, y, screen, clock, FPS):
-        sprite.Sprite.__init__(self)
-        self.screen = screen
-        self.clock = clock
-        self.FPS = FPS
-        self.fast = 1  # скорость перемещения. 0 - стоять на месте
-        self.image = Surface((10, 10))
-        self.image.fill(Color("white"))
-        self.rect = Rect(x, y, 10, 10)  # прямоугольный объект
-
-    def update(self, hero):
-        global weapon_on
-        if 11 in weapon_on:
-            self.rect.x = hero.rect.x - 10
-            self.rect.y = hero.rect.y - 10
-            self.fire()
-
-    def fire(self, x, y, x1, y1):
-        global weapon_on
-        if 22 in weapon_on:
-            run = int(x1) - int(x)
-            rise = int(y1) - int(y)
-            length = ((rise * rise) + (run * run)) ** 0.5
-            unitX = run / length
-            unitY = rise / length
-            self.rect.x += unitX * self.fast
-            self.rect.y += unitY * self.fast
-
-    def collide(self, platforms):
-        global weapon_on
-        hero = Player
-        for p in platforms:
-            if sprite.collide_rect(self, p) and self != p:  # если с чем-то или кем-то столкнулись
-                self.rect.x = hero.rect.x - 10
-                self.rect.y = hero.rect.y - 10
-                weapon_on.remove(22)
 
 
 class Player(sprite.Sprite):
@@ -157,58 +124,95 @@ class Player(sprite.Sprite):
         self.xvel = 0  # скорость перемещения. 0 - стоять на месте
         self.yvel = 0  # скорость вертикального перемещения
         self.onGround = False  # На земле ли я?
-        self.image = Surface((WIDTH, HEIGHT))
-        self.image.fill(Color(COLOR))
-        self.rect = Rect(x, y, WIDTH, HEIGHT)  # прямоугольный объект
-        # self.image.set_colorkey(Color(COLOR)) # делаем фон прозрачным
+        self.frames = []
+        self.frames2 = []
+        self.frames3 = []
+        self.sheet = image.load("%s/data/momoka/momoka_sheet_stay.png" % ICON_DIR)
+        self.sheet2 = image.load("%s/data/momoka/momoka_sheet_left.png" % ICON_DIR)
+        self.sheet3 = image.load("%s/data/momoka/momoka_sheet_right.png" % ICON_DIR)
+        self.columns = 1
+        self.columns2 = 4
+        self.rows = 1
+        self.cut_sheet(self.sheet, self.columns, self.rows)
+        self.cut_sheet2(self.sheet2, self.columns2, self.rows)
+        self.cut_sheet3(self.sheet3, self.columns2, self.rows)
+        self.cur_frame = 0
+        self.image = self.frames[self.cur_frame]
+        self.rect = self.rect.move(x, y)
 
     def die(self):
         time.wait(500)
         die_screen(self.screen, self.clock, self.FPS)
         main(screen_flag=False)
 
-    def teleporting(self, goX, goY):
-        self.rect.x = goX
-        self.rect.y = goY
+    def cut_sheet(self, sheet, columns, rows):
+        self.rect = Rect(0, 0, sheet.get_width() // columns, sheet.get_height() // rows)
+        for j in range(rows):
+            for i in range(columns):
+                frame_location = (self.rect.w * i, self.rect.h * j)
+                self.frames.append(sheet.subsurface(pygame.Rect(
+                    frame_location, self.rect.size)))
 
-    def update(self, left, right, up, platforms):
+    def cut_sheet2(self, sheet, columns, rows):
+        self.rect = Rect(0, 0, sheet.get_width() // columns, sheet.get_height() // rows)
+        for j in range(rows):
+            for i in range(columns):
+                frame_location = (self.rect.w * i, self.rect.h * j)
+                self.frames2.append(sheet.subsurface(pygame.Rect(
+                    frame_location, self.rect.size)))
 
+    def cut_sheet3(self, sheet, columns, rows):
+        self.rect = Rect(0, 0, sheet.get_width() // columns, sheet.get_height() // rows)
+        for j in range(rows):
+            for i in range(columns):
+                frame_location = (self.rect.w * i, self.rect.h * j)
+                self.frames3.append(sheet.subsurface(pygame.Rect(
+                    frame_location, self.rect.size)))
+
+    def update(self, screen, clock, FPS, left, right, up, platforms):
         if up:
             if self.onGround:  # прыгаем, только когда можем оттолкнуться от земли
                 self.yvel = -JUMP_POWER
-            self.image.fill(Color(COLOR))
+            self.cur_frame = (self.cur_frame + 1) % len(self.frames)
+            self.image = self.frames[self.cur_frame]
 
         if left:
             self.xvel = -MOVE_SPEED  # Лево = x- n
-            self.image.fill(Color(COLOR))
+            self.cur_frame = (self.cur_frame + 1) % len(self.frames)
+            self.image = self.frames2[self.cur_frame]
 
         if right:
             self.xvel = MOVE_SPEED  # Право = x + n
-            self.image.fill(Color(COLOR))
+            self.cur_frame = (self.cur_frame + 1) % len(self.frames)
+            self.image = self.frames3[self.cur_frame]
 
         if not (left or right):  # стоим, когда нет указаний идти
             self.xvel = 0
             if not up:
-                self.image.fill(Color(COLOR))
+                self.cur_frame = 0
+                self.image = self.frames[self.cur_frame]
 
         if not self.onGround:
             self.yvel += GRAVITY
 
         self.onGround = False  # Мы не знаем, когда мы на земле((
         self.rect.y += self.yvel
-        self.collide(0, self.yvel, platforms)
+        self.collide(0, self.yvel, screen, clock, FPS, platforms)
 
         self.rect.x += self.xvel  # переносим свои положение на xvel
-        self.collide(self.xvel, 0, platforms)
+        self.collide(self.xvel, 0, screen, clock, FPS, platforms)
 
-    def collide(self, xvel, yvel, platforms):
-        global weapon_on
+    def collide(self, xvel, yvel, screen, clock, FPS, platforms):
+        global meow_on
         for p in platforms:
             if sprite.collide_rect(self, p):  # если есть пересечение платформы с игроком
                 if isinstance(p, Monster):  # если пересакаемый блок- blocks.BlockDie или Monster
                     self.die()  # умираем
-                if isinstance(p, Weapon):
-                    weapon_on.append(11)
+                if isinstance(p, Meow):
+                    meow_on.append(11)
+                if isinstance(p, Tile_win):
+                    if 11 in meow_on:
+                        win_screen(screen, clock, FPS)
 
                 if xvel > 0:  # если движется вправо
                     self.rect.right = p.rect.left  # то не движется вправо
@@ -282,6 +286,32 @@ def die_screen(screen, clock, FPS):
         clock.tick(FPS)
 
 
+def win_screen(screen, clock, FPS):
+    intro_text = ["СДОХ"]
+    fon = pygame.transform.scale(load_image('die.jpg'), (WIN_WIDTH, WIN_HEIGHT))
+    screen.blit(fon, (0, 0))
+    font = pygame.font.Font(None, 30)
+    text_coord = 50
+    for line in intro_text:
+        string_rendered = font.render(line, 1, pygame.Color('white'))
+        intro_rect = string_rendered.get_rect()
+        text_coord += 10
+        intro_rect.top = text_coord
+        intro_rect.x = 10
+        text_coord += intro_rect.height
+        screen.blit(string_rendered, intro_rect)
+
+    while True:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                terminate()
+            elif event.type == pygame.KEYDOWN or \
+                    event.type == pygame.MOUSEBUTTONDOWN:
+                return
+        pygame.display.flip()
+        clock.tick(FPS)
+
+
 def start_screen(screen, clock, FPS):
     intro_text = ["ЗАСТАВКА", "",
                   "Правила игры",
@@ -315,58 +345,36 @@ def start_screen(screen, clock, FPS):
 def main(screen_flag=True):
     pygame.init()  # Инициация PyGame, обязательная строчка
     screen = pygame.display.set_mode(DISPLAY)  # Создаем окошко
-    pygame.display.set_caption("Super Mario Boy")  # Пишем в шапку
-    FPS = 60
+    pygame.display.set_caption("ne mario")  # Пишем в шапку
+    FPS = 30
     clock = pygame.time.Clock()
     bg = Surface((WIN_WIDTH, WIN_HEIGHT))  # Создание видимой поверхности
     # будем использовать как фон
     bg.fill(Color(BACKGROUND_COLOR))  # Заливаем поверхность сплошным цветом
     monsters = pygame.sprite.Group()  # Все передвигающиеся объекты
+    entities = pygame.sprite.Group()  # Все объекты
 
     mn = Monster(190, 200, 2, 3, 150, 15)
     if screen_flag:
         start_screen(screen, clock, FPS)
 
-    hero = Player(105, 55, screen, clock, FPS)  # создаем героя по (x,y) координатам
-    weapon = Weapon(55, 155, screen, clock, FPS)
-    bullet = Bullet(55, 155, screen, clock, FPS)
+    hero = Player(55, 55, screen, clock, FPS)  # создаем героя по (x,y) координатам
+    meow = Meow(55, 155, screen, clock, FPS)
 
     left = right = False  # по умолчанию - стоим
     up = False
 
-    entities = pygame.sprite.Group()  # Все объекты
     platforms = []  # то, во что мы будем врезаться или опираться
 
     entities.add(hero)
-    entities.add(weapon)
-    entities.add(bullet)
+    entities.add(meow)
     entities.add(mn)
     platforms.append(mn)
-    platforms.append(weapon)
-    platforms.append(bullet)
+    platforms.append(meow)
     monsters.add(mn)
 
-    level = [
-        "------------------------------------------",
-        "-                                        -",
-        "-                               --       -",
-        "-                                        -",
-        "-            --                          -",
-        "-                                        -",
-        "--                                       -",
-        "-                                        -",
-        "--                          ----     --- -",
-        "-                                        -",
-        "-                                        -",
-        "-      ---                               -",
-        "-                                        -",
-        "-   -------         ----                 -",
-        "-                                        -",
-        "-        ------                   -      -",
-        "-                                    --  -",
-        "-                                        -",
-        "-                                        -",
-        "------------------------------------------"]
+    with open('data/map/map1.txt', 'r') as f:
+        level = f.readlines()
 
     clock = pygame.time.Clock()
     x = y = 0  # координаты
@@ -374,6 +382,10 @@ def main(screen_flag=True):
         for col in row:  # каждый символ
             if col == "-":
                 pf = Tile(x, y)
+                entities.add(pf)
+                platforms.append(pf)
+            if col == "@":
+                pf = Tile_win(x, y)
                 entities.add(pf)
                 platforms.append(pf)
 
@@ -397,13 +409,6 @@ def main(screen_flag=True):
                 left = True
             if e.type == KEYDOWN and e.key == K_RIGHT:
                 right = True
-
-            if e.type == pygame.MOUSEBUTTONDOWN:
-                pos_mouse = pygame.mouse.get_pos()
-                print(pos_mouse[0], pos_mouse[1])
-                weapon_on.append(22)
-                bullet.fire(hero.rect.x, hero.rect.y, pos_mouse[0], pos_mouse[1])
-
             if e.type == KEYUP and e.key == K_UP:
                 up = False
             if e.type == KEYUP and e.key == K_RIGHT:
@@ -414,9 +419,8 @@ def main(screen_flag=True):
         screen.blit(bg, (0, 0))  # Каждую итерацию необходимо всё перерисовывать
 
         camera.update(hero)  # центризируем камеру относительно персонажа
-        hero.update(left, right, up, platforms)  # передвижение
-        bullet.update(hero)
-        weapon.update(hero)
+        hero.update(screen, clock, FPS, left, right, up, platforms)  # передвижение
+        meow.update(hero)
         monsters.update(platforms)  # передвигаем всех монстров
         for e in entities:
             screen.blit(e.image, camera.apply(e))
