@@ -25,8 +25,6 @@ BACKGROUND_COLOR = "#004400"
 
 ICON_DIR = os.path.dirname(__file__)  # Полный путь к каталогу с файлами
 
-MOVE_SPEED = 7
-JUMP_POWER = 10
 GRAVITY = 0.35  # Сила, которая будет тянуть нас вниз
 
 PLATFORM_WIDTH = 32
@@ -266,21 +264,29 @@ class Player(sprite.Sprite):
             self.sheet = image.load("%s/data/kokoma/kokoma_sheet_stay.png" % ICON_DIR)
             self.sheet2 = image.load("%s/data/kokoma/kokoma_sheet_left.png" % ICON_DIR)
             self.sheet3 = image.load("%s/data/kokoma/kokoma_sheet_right.png" % ICON_DIR)
+            self.columns2 = 8
+            self.rows = 1
+            self.move_speed = 4
+            self.jump_power = 10
         elif person_main == "momoka":
             self.sheet = image.load("%s/data/momoka/momoka_sheet_stay.png" % ICON_DIR)
             self.sheet2 = image.load("%s/data/momoka/momoka_sheet_left.png" % ICON_DIR)
             self.sheet3 = image.load("%s/data/momoka/momoka_sheet_right.png" % ICON_DIR)
+            self.columns2 = 4
+            self.rows = 1
+            self.move_speed = 8
+            self.jump_power = 7
         self.columns = 1
-        self.columns2 = 8
-        self.rows = 1
         self.cut_sheet(self.sheet, self.columns, self.rows)
         self.cut_sheet2(self.sheet2, self.columns2, self.rows)
         self.cut_sheet3(self.sheet3, self.columns2, self.rows)
         self.cur_frame = 0
-        self.image = self.frames[self.cur_frame]
         self.rect = self.rect.move(x, y)
 
+
     def die(self):
+        global meow_on
+        meow_on.clear()
         time.wait(900)
         die_screen(self.screen, self.clock, self.FPS)
         main(screen_flag=False)
@@ -317,18 +323,18 @@ class Player(sprite.Sprite):
     def update(self, screen, clock, FPS, left, right, up, platforms):
         if up:
             if self.onGround:  # прыгаем, только когда можем оттолкнуться от земли
-                self.yvel = -JUMP_POWER
+                self.yvel = -self.jump_power
             self.cur_frame = (self.cur_frame + 1) % len(self.frames)
             self.image = self.frames[self.cur_frame]
 
         if left:
-            self.xvel = -MOVE_SPEED  # Лево = x- n
-            self.cur_frame = (self.cur_frame + 1) % len(self.frames)
+            self.xvel = -self.move_speed  # Лево = x- n
+            self.cur_frame = (self.cur_frame + 1) % len(self.frames2)
             self.image = self.frames2[self.cur_frame]
 
         if right:
-            self.xvel = MOVE_SPEED  # Право = x + n
-            self.cur_frame = (self.cur_frame + 1) % len(self.frames)
+            self.xvel = self.move_speed  # Право = x + n
+            self.cur_frame = (self.cur_frame + 1) % len(self.frames3)
             self.image = self.frames3[self.cur_frame]
 
         if not (left or right):  # стоим, когда нет указаний идти
@@ -425,17 +431,17 @@ def kokoma_choise():
 
 
 def die_screen(screen, clock, FPS):
-    intro_text = ["СДОХ"]
-    fon = pygame.transform.scale(load_image('die.jpg'), (WIN_WIDTH, WIN_HEIGHT))
+    intro_text = ["О нет, ты умер(", "кликни чтобы", "начать заново"]
+    fon = pygame.transform.scale(load_image('die.png'), (WIN_WIDTH, WIN_HEIGHT))
     screen.blit(fon, (0, 0))
-    font = pygame.font.Font(None, 30)
-    text_coord = 50
+    font = pygame.font.Font("data/font/Fixedsys.ttf", 55)
+    text_coord = 160
     for line in intro_text:
         string_rendered = font.render(line, 1, pygame.Color('white'))
         intro_rect = string_rendered.get_rect()
         text_coord += 10
         intro_rect.top = text_coord
-        intro_rect.x = 10
+        intro_rect.x = 180
         text_coord += intro_rect.height
         screen.blit(string_rendered, intro_rect)
 
@@ -451,8 +457,8 @@ def die_screen(screen, clock, FPS):
 
 
 def win_screen(screen, clock, FPS):
-    intro_text = ["СДОХ"]
-    fon = pygame.transform.scale(load_image('die.jpg'), (WIN_WIDTH, WIN_HEIGHT))
+    intro_text = ["УРА, ПОБЕДА"]
+    fon = pygame.transform.scale(load_image('die.png'), (WIN_WIDTH, WIN_HEIGHT))
     screen.blit(fon, (0, 0))
     font = pygame.font.Font(None, 30)
     text_coord = 50
@@ -477,23 +483,33 @@ def win_screen(screen, clock, FPS):
 
 
 def start_screen(screen, clock, FPS):
-    intro_text = ["ЗАСТАВКА", "",
-                  "Правила игры",
-                  "Если в правилах несколько строк,",
-                  "приходится выводить их построчно"]
-
-    fon = pygame.transform.scale(load_image('fon.jpg'), (WIN_WIDTH, WIN_HEIGHT))
+    with open('data/txt/rules.txt', 'r', encoding="utf8") as f:
+        intro_text = f.readlines()
+    f.close()
+    fon = pygame.transform.scale(load_image('fon.png'), (WIN_WIDTH, WIN_HEIGHT))
+    img = load_image("kokoma/icon.png")
+    img1 = load_image("momoka/icon.png")
     screen.blit(fon, (0, 0))
-    font = pygame.font.Font(None, 30)
-    text_coord = 50
+    font = pygame.font.Font("data/font/Fixedsys.ttf", 20)
+    font1 = pygame.font.Font("data/font/MotelKingMedium.ttf", 50)
+    text_coord = 170
+    string_rendered1 = font1.render("NE MARIO", 1, pygame.Color('white'))
+    intro_rect1 = string_rendered1.get_rect()
+    intro_rect1.top = 40
+    intro_rect1.x = 230
+    screen.blit(string_rendered1, intro_rect1)
+    pygame.draw.rect(screen, "black", (30, 170, 270, 440))
     for line in intro_text:
-        string_rendered = font.render(line, 1, pygame.Color('white'))
+        string_rendered = font.render(line[:-1], 1, pygame.Color('white'))
         intro_rect = string_rendered.get_rect()
         text_coord += 10
         intro_rect.top = text_coord
-        intro_rect.x = 10
+        intro_rect.x = 40
         text_coord += intro_rect.height
         screen.blit(string_rendered, intro_rect)
+    screen.blit(img, (400, 350))
+    screen.blit(img1, (600, 350))
+    pygame.display.flip()
     Button(600, 540, 150, 55, 'Momoka', momoka_choise)
     Button(400, 540, 150, 55, 'Kokoma', kokoma_choise, True)
 
@@ -511,39 +527,25 @@ def main(screen_flag=True):
     pygame.init()  # Инициация PyGame, обязательная строчка
     screen = pygame.display.set_mode(DISPLAY)  # Создаем окошко
     pygame.display.set_caption("ne mario")  # Пишем в шапку
+    fon = load_image('bg.png')
     FPS = 30
     clock = pygame.time.Clock()
-    bg = Surface((WIN_WIDTH, WIN_HEIGHT))  # Создание видимой поверхности
     # будем использовать как фон
-    bg.fill(Color(BACKGROUND_COLOR))  # Заливаем поверхность сплошным цветом
     monsters = pygame.sprite.Group()  # Все передвигающиеся объекты
     entities = pygame.sprite.Group()  # Все объекты
-    mn = Monster_wraith(190, 200, 2, 3, 150, 15)
-    mn1 = Monster_slime(300, 576, 2, 3)
 
     if screen_flag:
         start_screen(screen, clock, FPS)
-
-    hero = Player(55, 55, screen, clock, FPS)  # создаем героя по (x,y) координатам
-    meow = Meow(55, 155, screen, clock, FPS)
 
     left = right = False  # по умолчанию - стоим
     up = False
 
     platforms = []  # то, во что мы будем врезаться или опираться
 
-    entities.add(hero)
-    entities.add(meow)
-    platforms.append(meow)
-    entities.add(mn)
-    platforms.append(mn)
-    monsters.add(mn)
-    entities.add(mn1)
-    platforms.append(mn1)
-    monsters.add(mn1)
-
     with open('data/map/map1.txt', 'r') as f:
         level = f.readlines()
+
+    f.close()
 
     clock = pygame.time.Clock()
     x = y = 0  # координаты
@@ -557,13 +559,30 @@ def main(screen_flag=True):
                 pf = Tile_win(x, y)
                 entities.add(pf)
                 platforms.append(pf)
+            if col == ".":
+                mn = Monster_wraith(x, y, 2, 3, 150, 15)
+                entities.add(mn)
+                platforms.append(mn)
+                monsters.add(mn)
+            if col == ",":
+                mn1 = Monster_slime(300, 576, 2, 3)
+                entities.add(mn1)
+                platforms.append(mn1)
+                monsters.add(mn1)
+            if col == "+":
+                meow = Meow(x, y, screen, clock, FPS)
+                entities.add(meow)
+                platforms.append(meow)
+            if col == "=":
+                hero = Player(x, y, screen, clock, FPS)  # создаем героя по (x,y) координатам
+                entities.add(hero)
 
             x += PLATFORM_WIDTH  # блоки платформы ставятся на ширине блоков
         y += PLATFORM_HEIGHT  # то же самое и с высотой
         x = 0  # на каждой новой строчке начинаем с нуля
 
-    total_level_width = len(level[0]) * PLATFORM_WIDTH  # Высчитываем фактическую ширину уровня
-    total_level_height = len(level) * PLATFORM_HEIGHT  # высоту
+    total_level_width = len(level[0][:-1]) * PLATFORM_WIDTH  # Высчитываем фактическую ширину уровня
+    total_level_height = len(level[:-1]) * PLATFORM_HEIGHT  # высоту
 
     camera = Camera(camera_configure, total_level_width, total_level_height)
 
@@ -572,20 +591,20 @@ def main(screen_flag=True):
         for e in pygame.event.get():  # Обрабатываем события
             if e.type == QUIT:
                 terminate()
-            if e.type == KEYDOWN and e.key == K_w:
+            if e.type == KEYDOWN and (e.key == K_w or e.key == K_UP):
                 up = True
-            if e.type == KEYDOWN and e.key == K_a:
+            if e.type == KEYDOWN and (e.key == K_a or e.key == K_LEFT):
                 left = True
-            if e.type == KEYDOWN and e.key == K_d:
+            if e.type == KEYDOWN and (e.key == K_d or e.key == K_RIGHT):
                 right = True
-            if e.type == KEYUP and e.key == K_w:
+            if e.type == KEYUP and (e.key == K_w or e.key == K_UP):
                 up = False
-            if e.type == KEYUP and e.key == K_d:
+            if e.type == KEYUP and (e.key == K_d or e.key == K_RIGHT):
                 right = False
-            if e.type == KEYUP and e.key == K_a:
+            if e.type == KEYUP and (e.key == K_a or e.key == K_LEFT):
                 left = False
 
-        screen.blit(bg, (0, 0))  # Каждую итерацию необходимо всё перерисовывать
+        screen.blit(fon, (0, 0))  # Каждую итерацию необходимо всё перерисовывать
 
         camera.update(hero)  # центризируем камеру относительно персонажа
         hero.update(screen, clock, FPS, left, right, up, platforms)  # передвижение
