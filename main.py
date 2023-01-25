@@ -15,6 +15,8 @@ def load_image(name, colorkey=None):
 
 
 meow_on = []
+person_main = None
+
 # Объявляем переменные
 WIN_WIDTH = 800  # Ширина создаваемого окна
 WIN_HEIGHT = 640  # Высота
@@ -92,11 +94,11 @@ class Button():
             else:
                 self.alreadyPressed = False
 
-            self.buttonSurface.blit(self.buttonSurf, [
-                self.buttonRect.width / 2 - self.buttonSurf.get_rect().width / 2,
-                self.buttonRect.height / 2 - self.buttonSurf.get_rect().height / 2
-            ])
-            screen.blit(self.buttonSurface, self.buttonRect)
+        self.buttonSurface.blit(self.buttonSurf, [
+            self.buttonRect.width / 2 - self.buttonSurf.get_rect().width / 2,
+            self.buttonRect.height / 2 - self.buttonSurf.get_rect().height / 2
+        ])
+        screen.blit(self.buttonSurface, self.buttonRect)
 
 
 class Monster_wraith(sprite.Sprite):
@@ -249,6 +251,7 @@ class Meow(sprite.Sprite):
 
 class Player(sprite.Sprite):
     def __init__(self, x, y, screen, clock, FPS):
+        global person_main
         sprite.Sprite.__init__(self)
         self.screen = screen
         self.clock = clock
@@ -259,9 +262,14 @@ class Player(sprite.Sprite):
         self.frames = []
         self.frames2 = []
         self.frames3 = []
-        self.sheet = image.load("%s/data/kokoma/kokoma_sheet_stay.png" % ICON_DIR)
-        self.sheet2 = image.load("%s/data/kokoma/kokoma_sheet_left.png" % ICON_DIR)
-        self.sheet3 = image.load("%s/data/kokoma/kokoma_sheet_right.png" % ICON_DIR)
+        if person_main == "kokoma":
+            self.sheet = image.load("%s/data/kokoma/kokoma_sheet_stay.png" % ICON_DIR)
+            self.sheet2 = image.load("%s/data/kokoma/kokoma_sheet_left.png" % ICON_DIR)
+            self.sheet3 = image.load("%s/data/kokoma/kokoma_sheet_right.png" % ICON_DIR)
+        elif person_main == "momoka":
+            self.sheet = image.load("%s/data/momoka/momoka_sheet_stay.png" % ICON_DIR)
+            self.sheet2 = image.load("%s/data/momoka/momoka_sheet_left.png" % ICON_DIR)
+            self.sheet3 = image.load("%s/data/momoka/momoka_sheet_right.png" % ICON_DIR)
         self.columns = 1
         self.columns2 = 8
         self.rows = 1
@@ -404,6 +412,18 @@ def start_main():
     main(screen_flag=False)
 
 
+def momoka_choise():
+    global person_main
+    person_main = "momoka"
+    start_main()
+
+
+def kokoma_choise():
+    global person_main
+    person_main = "kokoma"
+    start_main()
+
+
 def die_screen(screen, clock, FPS):
     intro_text = ["СДОХ"]
     fon = pygame.transform.scale(load_image('die.jpg'), (WIN_WIDTH, WIN_HEIGHT))
@@ -474,8 +494,8 @@ def start_screen(screen, clock, FPS):
         intro_rect.x = 10
         text_coord += intro_rect.height
         screen.blit(string_rendered, intro_rect)
-    Button(150, 30, 400, 100, 'Button One (onePress)', start_main)
-    Button(150, 140, 400, 100, 'Button Two (multiPress)', start_main, True)
+    Button(600, 540, 150, 55, 'Momoka', momoka_choise)
+    Button(400, 540, 150, 55, 'Kokoma', kokoma_choise, True)
 
     while True:
         for event in pygame.event.get():
