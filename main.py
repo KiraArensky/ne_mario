@@ -1,6 +1,7 @@
 import pygame
 from pygame import *
-import os, sys
+import os
+import sys
 
 
 def load_image(name, colorkey=None):
@@ -30,6 +31,12 @@ PLATFORM_WIDTH = 32
 PLATFORM_HEIGHT = 32
 PLATFORM_COLOR = "#FF6262"
 
+pygame.font.init()
+
+font = pygame.font.SysFont('arial', 40)
+
+objects = []
+
 
 class Tile(sprite.Sprite):
     def __init__(self, x, y):
@@ -49,14 +56,60 @@ class Tile_win(sprite.Sprite):
         self.rect = Rect(x, y, PLATFORM_WIDTH, PLATFORM_HEIGHT)
 
 
-class Monster(sprite.Sprite):
+class Button():
+    def __init__(self, x, y, width, height, buttonText='Button', onclickFunction=None, onePress=False):
+        self.x = x
+        self.y = y
+        self.width = width
+        self.height = height
+        self.onclickFunction = onclickFunction
+        self.onePress = onePress
+        self.alreadyPressed = False
+
+        self.fillColors = {
+            'normal': '#ffffff',
+            'hover': '#666666',
+            'pressed': '#333333',
+        }
+        self.buttonSurface = pygame.Surface((self.width, self.height))
+        self.buttonRect = pygame.Rect(self.x, self.y, self.width, self.height)
+
+        self.buttonSurf = font.render(buttonText, True, (20, 20, 20))
+        objects.append(self)
+
+    def process(self, screen):
+        mousePos = pygame.mouse.get_pos()
+        self.buttonSurface.fill(self.fillColors['normal'])
+        if self.buttonRect.collidepoint(mousePos):
+            self.buttonSurface.fill(self.fillColors['hover'])
+            if pygame.mouse.get_pressed(num_buttons=3)[0]:
+                self.buttonSurface.fill(self.fillColors['pressed'])
+                if self.onePress:
+                    self.onclickFunction()
+                elif not self.alreadyPressed:
+                    self.onclickFunction()
+                    self.alreadyPressed = True
+            else:
+                self.alreadyPressed = False
+
+            self.buttonSurface.blit(self.buttonSurf, [
+                self.buttonRect.width / 2 - self.buttonSurf.get_rect().width / 2,
+                self.buttonRect.height / 2 - self.buttonSurf.get_rect().height / 2
+            ])
+            screen.blit(self.buttonSurface, self.buttonRect)
+
+
+class Monster_wraith(sprite.Sprite):
     def __init__(self, x, y, left, up, maxLengthLeft, maxLengthUp):
         sprite.Sprite.__init__(self)
         self.frames = []
+        self.frames2 = []
         self.sheet = image.load("%s/data/Wraith.png" % ICON_DIR)
+        self.sheet2 = image.load("%s/data/Wraith_right.png" % ICON_DIR)
         self.columns = 4
         self.rows = 5
         self.cut_sheet(self.sheet, self.columns, self.rows)
+        self.cut_sheet2(self.sheet2, self.columns, self.rows)
         self.cur_frame = 0
         self.image = self.frames[self.cur_frame]
         self.rect = self.rect.move(x, y)
@@ -66,6 +119,7 @@ class Monster(sprite.Sprite):
         self.maxLengthUp = maxLengthUp  # максимальное расстояние, которое может пройти в одну сторону, вертикаль
         self.xvel = left  # cкорость передвижения по горизонтали, 0 - стоит на месте
         self.yvel = up  # скорость движения по вертикали, 0 - не двигается
+        self.leftt = True
 
     def cut_sheet(self, sheet, columns, rows):
         self.rect = Rect(0, 0, sheet.get_width() // columns, sheet.get_height() // rows)
@@ -75,10 +129,22 @@ class Monster(sprite.Sprite):
                 self.frames.append(sheet.subsurface(pygame.Rect(
                     frame_location, self.rect.size)))
 
+    def cut_sheet2(self, sheet, columns, rows):
+        self.rect = Rect(0, 0, sheet.get_width() // columns, sheet.get_height() // rows)
+        for j in range(rows):
+            for i in range(columns):
+                frame_location = (self.rect.w * i, self.rect.h * j)
+                self.frames2.append(sheet.subsurface(pygame.Rect(
+                    frame_location, self.rect.size)))
+
     def update(self, platforms):  # по принципу героя
 
-        self.cur_frame = (self.cur_frame + 1) % len(self.frames)
-        self.image = self.frames[self.cur_frame]
+        if self.leftt:
+            self.cur_frame = (self.cur_frame + 1) % len(self.frames)
+            self.image = self.frames[self.cur_frame]
+        else:
+            self.cur_frame = (self.cur_frame + 1) % len(self.frames2)
+            self.image = self.frames2[self.cur_frame]
 
         self.rect.y += self.yvel
         self.rect.x += self.xvel
@@ -87,14 +153,80 @@ class Monster(sprite.Sprite):
 
         if (abs(self.startX - self.rect.x) > self.maxLengthLeft):
             self.xvel = -self.xvel  # если прошли максимальное растояние, то идеи в обратную сторону
+            if self.leftt:
+                self.leftt = False
+            else:
+                self.leftt = True
         if (abs(self.startY - self.rect.y) > self.maxLengthUp):
             self.yvel = -self.yvel  # если прошли максимальное растояние, то идеи в обратную сторону, вертикаль
+            if self.leftt:
+                self.leftt = False
+            else:
+                self.leftt = True
 
     def collide(self, platforms):
         for p in platforms:
             if sprite.collide_rect(self, p) and self != p:  # если с чем-то или кем-то столкнулись
                 self.xvel = - self.xvel  # то поворачиваем в обратную сторону
                 self.yvel = - self.yvel
+
+
+class Monster_slime(sprite.Sprite):
+    def __init__(self, x, y, left, up):
+        sprite.Sprite.__init__(self)
+        self.frames = []
+        self.frames2 = []
+        self.sheet = image.load("%s/data/Slime_right.png" % ICON_DIR)
+        self.sheet2 = image.load("%s/data/Slime_left.png" % ICON_DIR)
+        self.columns = 4
+        self.rows = 1
+        self.cut_sheet(self.sheet, self.columns, self.rows)
+        self.cut_sheet2(self.sheet2, self.columns, self.rows)
+        self.cur_frame = 0
+        self.image = self.frames[self.cur_frame]
+        self.rect = self.rect.move(x, y)
+        self.startX = x  # начальные координаты
+        self.startY = y
+        self.xvel = left  # cкорость передвижения по горизонтали, 0 - стоит на месте
+        self.yvel = up  # скорость движения по вертикали, 0 - не двигается
+        self.leftt = False
+
+    def cut_sheet(self, sheet, columns, rows):
+        self.rect = Rect(0, 0, sheet.get_width() // columns, sheet.get_height() // rows)
+        for j in range(rows):
+            for i in range(columns):
+                frame_location = (self.rect.w * i, self.rect.h * j)
+                self.frames.append(sheet.subsurface(pygame.Rect(
+                    frame_location, self.rect.size)))
+
+    def cut_sheet2(self, sheet, columns, rows):
+        self.rect = Rect(0, 0, sheet.get_width() // columns, sheet.get_height() // rows)
+        for j in range(rows):
+            for i in range(columns):
+                frame_location = (self.rect.w * i, self.rect.h * j)
+                self.frames2.append(sheet.subsurface(pygame.Rect(
+                    frame_location, self.rect.size)))
+
+    def update(self, platforms):  # по принципу героя
+        if self.leftt:
+            self.cur_frame = (self.cur_frame + 1) % len(self.frames2)
+            self.image = self.frames2[self.cur_frame]
+        else:
+            self.cur_frame = (self.cur_frame + 1) % len(self.frames)
+            self.image = self.frames[self.cur_frame]
+        self.rect.x += self.xvel
+
+        self.collide(platforms)
+
+    def collide(self, platforms):
+        for p in platforms:
+            if sprite.collide_rect(self, p) and self != p:
+                # если с чем-то или кем-то столкнулись
+                self.xvel = - self.xvel  # то поворачиваем в обратную сторону
+                if self.leftt:
+                    self.leftt = False
+                else:
+                    self.leftt = True
 
 
 class Meow(sprite.Sprite):
@@ -127,11 +259,11 @@ class Player(sprite.Sprite):
         self.frames = []
         self.frames2 = []
         self.frames3 = []
-        self.sheet = image.load("%s/data/momoka/momoka_sheet_stay.png" % ICON_DIR)
-        self.sheet2 = image.load("%s/data/momoka/momoka_sheet_left.png" % ICON_DIR)
-        self.sheet3 = image.load("%s/data/momoka/momoka_sheet_right.png" % ICON_DIR)
+        self.sheet = image.load("%s/data/kokoma/kokoma_sheet_stay.png" % ICON_DIR)
+        self.sheet2 = image.load("%s/data/kokoma/kokoma_sheet_left.png" % ICON_DIR)
+        self.sheet3 = image.load("%s/data/kokoma/kokoma_sheet_right.png" % ICON_DIR)
         self.columns = 1
-        self.columns2 = 4
+        self.columns2 = 8
         self.rows = 1
         self.cut_sheet(self.sheet, self.columns, self.rows)
         self.cut_sheet2(self.sheet2, self.columns2, self.rows)
@@ -141,8 +273,13 @@ class Player(sprite.Sprite):
         self.rect = self.rect.move(x, y)
 
     def die(self):
-        time.wait(500)
+        time.wait(900)
         die_screen(self.screen, self.clock, self.FPS)
+        main(screen_flag=False)
+
+    def win(self):
+        time.wait(900)
+        win_screen(self.screen, self.clock, self.FPS)
         main(screen_flag=False)
 
     def cut_sheet(self, sheet, columns, rows):
@@ -206,13 +343,16 @@ class Player(sprite.Sprite):
         global meow_on
         for p in platforms:
             if sprite.collide_rect(self, p):  # если есть пересечение платформы с игроком
-                if isinstance(p, Monster):  # если пересакаемый блок- blocks.BlockDie или Monster
+                if isinstance(p, Monster_wraith):  # если пересакаемый блок- blocks.BlockDie или Monster
+                    self.die()  # умираем
+                if isinstance(p, Monster_slime):  # если пересакаемый блок- blocks.BlockDie или Monster
                     self.die()  # умираем
                 if isinstance(p, Meow):
                     meow_on.append(11)
                 if isinstance(p, Tile_win):
                     if 11 in meow_on:
-                        win_screen(screen, clock, FPS)
+                        meow_on.clear()
+                        self.win()
 
                 if xvel > 0:  # если движется вправо
                     self.rect.right = p.rect.left  # то не движется вправо
@@ -258,6 +398,10 @@ def camera_configure(camera, target_rect):
 def terminate():
     pygame.quit()
     sys.exit()
+
+
+def start_main():
+    main(screen_flag=False)
 
 
 def die_screen(screen, clock, FPS):
@@ -330,14 +474,15 @@ def start_screen(screen, clock, FPS):
         intro_rect.x = 10
         text_coord += intro_rect.height
         screen.blit(string_rendered, intro_rect)
+    Button(150, 30, 400, 100, 'Button One (onePress)', start_main)
+    Button(150, 140, 400, 100, 'Button Two (multiPress)', start_main, True)
 
     while True:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 terminate()
-            elif event.type == pygame.KEYDOWN or \
-                    event.type == pygame.MOUSEBUTTONDOWN:
-                return  # начинаем игру
+        for objt in objects:
+            objt.process(screen)
         pygame.display.flip()
         clock.tick(FPS)
 
@@ -353,8 +498,9 @@ def main(screen_flag=True):
     bg.fill(Color(BACKGROUND_COLOR))  # Заливаем поверхность сплошным цветом
     monsters = pygame.sprite.Group()  # Все передвигающиеся объекты
     entities = pygame.sprite.Group()  # Все объекты
+    mn = Monster_wraith(190, 200, 2, 3, 150, 15)
+    mn1 = Monster_slime(300, 576, 2, 3)
 
-    mn = Monster(190, 200, 2, 3, 150, 15)
     if screen_flag:
         start_screen(screen, clock, FPS)
 
@@ -368,10 +514,13 @@ def main(screen_flag=True):
 
     entities.add(hero)
     entities.add(meow)
+    platforms.append(meow)
     entities.add(mn)
     platforms.append(mn)
-    platforms.append(meow)
     monsters.add(mn)
+    entities.add(mn1)
+    platforms.append(mn1)
+    monsters.add(mn1)
 
     with open('data/map/map1.txt', 'r') as f:
         level = f.readlines()
@@ -403,17 +552,17 @@ def main(screen_flag=True):
         for e in pygame.event.get():  # Обрабатываем события
             if e.type == QUIT:
                 terminate()
-            if e.type == KEYDOWN and e.key == K_UP:
+            if e.type == KEYDOWN and e.key == K_w:
                 up = True
-            if e.type == KEYDOWN and e.key == K_LEFT:
+            if e.type == KEYDOWN and e.key == K_a:
                 left = True
-            if e.type == KEYDOWN and e.key == K_RIGHT:
+            if e.type == KEYDOWN and e.key == K_d:
                 right = True
-            if e.type == KEYUP and e.key == K_UP:
+            if e.type == KEYUP and e.key == K_w:
                 up = False
-            if e.type == KEYUP and e.key == K_RIGHT:
+            if e.type == KEYUP and e.key == K_d:
                 right = False
-            if e.type == KEYUP and e.key == K_LEFT:
+            if e.type == KEYUP and e.key == K_a:
                 left = False
 
         screen.blit(bg, (0, 0))  # Каждую итерацию необходимо всё перерисовывать
