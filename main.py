@@ -1,7 +1,12 @@
+from os import system
+
+system("pip install -r requirements.txt")
+
 import pygame
 from pygame import *
 import os
 import sys
+import random
 
 
 def load_image(name, colorkey=None):
@@ -238,13 +243,72 @@ class Meow(sprite.Sprite):
         self.fast = 150  # скорость перемещения. 0 - стоять на месте
         self.image = Surface((10, 10))
         self.image.fill(Color("black"))
-        self.rect = Rect(x, y, 10, 10)  # прямоугольный объект
+        self.frames = []
+        self.frames2 = []
+        self.frames3 = []
+        self.sheet = image.load("%s/data/meow/meow_sheet_stay.png" % ICON_DIR)
+        self.sheet2 = image.load("%s/data/meow/meow_sheet_left.png" % ICON_DIR)
+        self.sheet3 = image.load("%s/data/meow/meow_sheet_right.png" % ICON_DIR)
+        self.rows = 1
+        self.columns = 8
+        self.cut_sheet(self.sheet, self.columns, self.rows)
+        self.cut_sheet2(self.sheet2, self.columns, self.rows)
+        self.cut_sheet3(self.sheet3, self.columns, self.rows)
+        self.cur_frame = 0
+        self.rect = self.rect.move(x, y)
 
-    def update(self, hero):
-        global meow_on
+    def cut_sheet(self, sheet, columns, rows):
+        self.rect = Rect(0, 0, sheet.get_width() // columns, sheet.get_height() // rows)
+        for j in range(rows):
+            for i in range(columns):
+                frame_location = (self.rect.w * i, self.rect.h * j)
+                self.frames.append(sheet.subsurface(pygame.Rect(
+                    frame_location, self.rect.size)))
+
+    def cut_sheet2(self, sheet, columns, rows):
+        self.rect = Rect(0, 0, sheet.get_width() // columns, sheet.get_height() // rows)
+        for j in range(rows):
+            for i in range(columns):
+                frame_location = (self.rect.w * i, self.rect.h * j)
+                self.frames2.append(sheet.subsurface(pygame.Rect(
+                    frame_location, self.rect.size)))
+
+    def cut_sheet3(self, sheet, columns, rows):
+        self.rect = Rect(0, 0, sheet.get_width() // columns, sheet.get_height() // rows)
+        for j in range(rows):
+            for i in range(columns):
+                frame_location = (self.rect.w * i, self.rect.h * j)
+                self.frames3.append(sheet.subsurface(pygame.Rect(
+                    frame_location, self.rect.size)))
+
+    def update(self, hero, screen, clock, left, right, up, platforms):
+        global meow_on, person_main
         if 11 in meow_on:
-            self.rect.x = hero.rect.x - 10
-            self.rect.y = hero.rect.y - 10
+            if person_main == "momoka":
+                self.rect.x = hero.rect.x - 64
+                self.rect.y = hero.rect.y - 16
+            if person_main == "kokoma":
+                self.rect.x = hero.rect.x - 64
+                self.rect.y = hero.rect.y
+            if up:
+                self.cur_frame = (self.cur_frame + 1) % len(self.frames)
+                self.image = self.frames[self.cur_frame]
+
+            if left:
+                self.cur_frame = (self.cur_frame + 1) % len(self.frames2)
+                self.image = self.frames2[self.cur_frame]
+
+            if right:
+                self.cur_frame = (self.cur_frame + 1) % len(self.frames3)
+                self.image = self.frames3[self.cur_frame]
+
+            if not (left or right):  # стоим, когда нет указаний идти
+                if not up:
+                    self.cur_frame = 0
+                    self.image = self.frames[self.cur_frame]
+        else:
+            self.cur_frame = (self.cur_frame + 1) % len(self.frames)
+            self.image = self.frames[self.cur_frame]
 
 
 class Player(sprite.Sprite):
@@ -282,7 +346,6 @@ class Player(sprite.Sprite):
         self.cut_sheet3(self.sheet3, self.columns2, self.rows)
         self.cur_frame = 0
         self.rect = self.rect.move(x, y)
-
 
     def die(self):
         global meow_on
@@ -458,16 +521,16 @@ def die_screen(screen, clock, FPS):
 
 def win_screen(screen, clock, FPS):
     intro_text = ["УРА, ПОБЕДА"]
-    fon = pygame.transform.scale(load_image('die.png'), (WIN_WIDTH, WIN_HEIGHT))
+    fon = pygame.transform.scale(load_image('win.jpg'), (WIN_WIDTH, WIN_HEIGHT))
     screen.blit(fon, (0, 0))
     font = pygame.font.Font(None, 30)
     text_coord = 50
     for line in intro_text:
-        string_rendered = font.render(line, 1, pygame.Color('white'))
+        string_rendered = font.render(line, 1, pygame.Color('black'))
         intro_rect = string_rendered.get_rect()
         text_coord += 10
         intro_rect.top = text_coord
-        intro_rect.x = 10
+        intro_rect.x = 20
         text_coord += intro_rect.height
         screen.blit(string_rendered, intro_rect)
 
@@ -526,8 +589,10 @@ def start_screen(screen, clock, FPS):
 def main(screen_flag=True):
     pygame.init()  # Инициация PyGame, обязательная строчка
     screen = pygame.display.set_mode(DISPLAY)  # Создаем окошко
+    programIcon = pygame.image.load("data\momoka\momoka_love.png")
+    pygame.display.set_icon(programIcon)
     pygame.display.set_caption("ne mario")  # Пишем в шапку
-    fon = load_image('bg.png')
+    fon = load_image(f'bg/{random.choice(os.listdir("data/bg"))}')
     FPS = 30
     clock = pygame.time.Clock()
     # будем использовать как фон
@@ -542,7 +607,7 @@ def main(screen_flag=True):
 
     platforms = []  # то, во что мы будем врезаться или опираться
 
-    with open('data/map/map1.txt', 'r') as f:
+    with open(f'data/map/{random.choice(os.listdir("data/map"))}', 'r') as f:
         level = f.readlines()
 
     f.close()
@@ -608,7 +673,7 @@ def main(screen_flag=True):
 
         camera.update(hero)  # центризируем камеру относительно персонажа
         hero.update(screen, clock, FPS, left, right, up, platforms)  # передвижение
-        meow.update(hero)
+        meow.update(hero, screen, clock, left, right, up, platforms)
         monsters.update(platforms)  # передвигаем всех монстров
         for e in entities:
             screen.blit(e.image, camera.apply(e))
